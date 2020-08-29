@@ -2,7 +2,8 @@
 
 <head>
   <title>Pipopipette</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.3.3/pixi.min.js" integrity="sha512-J7UHpLx39bpqtP+aWP6yIuXroFk0XPkDQaS9zDthM4TVeaXstWYh556gxsXwwIwpAPSoKqVHW+eqz3B93SpyKg==" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.5/redux.min.js" integrity="sha512-P36ourTueX/PrXrD4Auc1kVLoTE7bkWrIrkaM0IG2X3Fd90LFgTRogpZzNBssay0XOXhrIgudf4wFeftdsPDiQ==" crossorigin="anonymous"></script>
   <style>
     body {
       margin:0
@@ -16,13 +17,80 @@
 <body>
   <div id="pixi-container" class="pixi-container"></div>
   <script>
-    function clamp(x, lower, upper) {
-      if (x == NaN || lower == NaN || upper == NaN) {
-        return NaN
+
+    // Redux reducers / actions
+    const PLAYER_JOINED = 'PLAYER_JOINED';
+
+    function players(state = {}, action) {
+      switch(action.type) {
+        case PLAYER_JOINED:
+          player = {}
+          player[action.player.id] = action.player
+          return {...state, ...player}
+        default:
+          return state
       }
-      return Math.min(Math.max(x, lower), upper)
     }
 
+    const ADD_MOVE = 'ADD_MOVE';
+    function moves(state = [], action) {
+      switch(action.type) {
+        case ADD_MOVE:
+          return [...state, action.move]
+        default:
+          return state
+      }
+    }
+
+    const reducer = Redux.combineReducers({players, moves})
+   
+    const store = Redux.createStore(reducer)
+
+    // Action creators
+    function PlayerJoined(player) {
+      return {
+        type: PLAYER_JOINED,
+        player
+      }
+    }
+
+    function AddMove(move) {
+      return {
+        type: ADD_MOVE,
+        move
+      }
+    }
+
+    // State data
+    function Player(id, name, color) {
+      return { id, name, color }
+    }
+    function Move(playerId, segment, cell) {
+      return { playerId, segment, cell }
+    }
+    function Segment(x1, y1, x2, y2) {
+      return { x1, y1, x2, y2 }
+    }
+    function Cell(x, y) {
+      return {x,y}
+    }
+
+    // Pixi app subscribes to Redux store updates.
+    store.subscribe(() => {
+      const curr = store.getState()
+      let cells = curr.moves.filter((m) => m.cell).map((move) => {
+        let color = curr.players[move.playerId].color
+        return GridCell(move.cell.x, move.cell.y, color)
+      })
+      let segments = curr.moves.map((move) => {
+        let color = curr.players[move.playerId].color
+        return GridSegment(move.segment, color)
+      })
+      grid.setCells(cells)
+      grid.setSegments(segments)
+    });
+    
+    // Pixi App
     const app = new PIXI.Application({
       autoResize: true,
       antialias: true,
@@ -32,20 +100,27 @@
     document.querySelector("#pixi-container").appendChild(app.view);
 
     window.addEventListener('resize', resize);
-    console.log(app);
 
+    // Layout data
     function GridSegment(segment, color) {
       return {segment, color}
     }
 
+    function GridCell(x, y, color) {
+      return {x, y, color}
+    }
+    
+    // Root PIXI container
     class Grid extends PIXI.Container {
       constructor(n, debug) {
         super();
 
         this.n = n;
+        this.measures = {};
         this.interactive = true;
         this.highlightedSegment = null;
         this.segments = [];
+        this.cells = [];
         this.g = new PIXI.Graphics();
 
         this.addChild(this.g);
@@ -59,6 +134,10 @@
 
       setSegments(segments) {
         this.segments = segments;
+      }
+
+      setCells(cells) {
+        this.cells = cells;
       }
 
       onPointermove(event) {
@@ -95,6 +174,7 @@
         this.updateHighlightedSegment();
 
         this.g.clear();
+        this.drawCells();
         this.drawHighlightedSegment();
         this.drawSegments();
         this.drawDots();
@@ -148,8 +228,14 @@
             return  
           }
 
-          this.highlightedSegment = {x1, y1, x2, y2}
+          this.highlightedSegment = Segment(x1, y1, x2, y2)
         }
+      }
+
+      drawCells() {
+        this.cells.forEach((cell) => {
+          this.drawCell(cell.x, cell.y, cell.color)
+        })
       }
 
       drawSegments() {
@@ -164,6 +250,15 @@
 
           this.drawSegment(this.highlightedSegment, 0xFFFFFF)
         }
+      }
+
+      drawCell(x, y, color) {
+        const {dMin, step} = this.measures;
+        x = dMin + step*x;
+        y = dMin + step*y;
+        this.g.beginFill(color);
+        this.g.drawRect(x,y, step, step);
+        this.g.endFill();
       }
 
       drawSegment({x1,y1,x2,y2}, color) {
@@ -212,11 +307,7 @@
       }
     }
 
-    grid = new Grid(20);
-    grid.setSegments([
-      GridSegment({x1:1,y1:2,x2:2,y2:2}, 0xFF0000),
-      GridSegment({x1:4,y1:1,x2:4,y2:2}, 0x0000FF)
-    ])
+    grid = new Grid(15);
     app.stage.addChild(grid);
 
     function resize() {
@@ -229,42 +320,14 @@
     app.ticker.add(delta => {
       grid.onRender()
     });
-    
-    /*
-    class SegmentMap {
-      constructor() {
-        this.data = {}
-      }
 
-      set(segment, value) {
-        this.data[this._key(segment)] = value
+    function clamp(x, lower, upper) {
+      if (x == NaN || lower == NaN || upper == NaN) {
+        return NaN
       }
-      
-      get(segment) {
-        return this.data[this._key(segment)]
-      }
+      return Math.min(Math.max(x, lower), upper)
+    }
 
-      foreach(f) {
-        for(const key in this.data) {
-          f(this._segment(key), this.data[key])
-        }
-      }
-
-      contains(segment) {
-        return this.data.hasOwnProperty(_key(segment))
-      }
-
-      _key({x1,y1,x2,y2}) {
-        return x1+","+y1+":"+x2+","+y2
-      }
-      
-      _segment(key) {
-        const [p1,p2] = key.split(":")
-        const [x1,y1] = p1.split(",")
-        const [x2,y2] = p2.split(",")
-        return {x1: parseInt(x1), y1: parseInt(y1), x2: parseInt(x2), y2: parseInt(y2)}
-      }
-    }*/
   </script>
 </body>
 
