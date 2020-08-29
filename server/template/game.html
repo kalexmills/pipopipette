@@ -1,8 +1,73 @@
 <html>
-    <head>
-        <title>Pipopipette</title>
-    </head>
-    <body>
-        Hello templates!
-    </body>
+
+<head>
+  <title>Pipopipette</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
+  <style>
+    .pixi-container{
+      height: 100%
+    }
+  </style>
+</head>
+
+<body>
+  <div id="pixi-container" class="pixi-container"></div>
+  <script>
+    const app = new PIXI.Application({
+      autoResize: true,
+      resolution: devicePixelRatio,
+    })
+
+    document.querySelector("#pixi-container").appendChild(app.view);
+
+    window.addEventListener('resize', resize);
+
+
+    const container = new PIXI.Graphics();
+    
+    const gridBound = new PIXI.Graphics();
+    container.addChild(gridBound);
+    app.stage.addChild(container)
+
+    function resizeGrid(w, h) {
+      const pad = 50;
+      const sq = Math.min(w, h) - pad;
+      const xOff = Math.max(w - sq, 0)/2;
+      const yOff = Math.max(h - sq, 0)/2;
+      
+      gridBound.clear()
+      gridBound.lineStyle(2, 0xFFFFFF, 1);
+      gridBound.drawRect(-sq/2, -sq/2, sq, sq);
+      gridBound.x = sq/2 + xOff
+      gridBound.y = sq/2 + yOff
+    }
+
+    function resize() {
+      const parent = app.view.parentNode;
+      app.renderer.resize(parent.clientWidth, parent.clientHeight);
+      resizeGrid(app.screen.width, app.screen.height);
+    }
+    resize()
+  /*
+    const circle = new PIXI.Graphics();
+    circle.beginFill(0xFFFFFF);
+    circle.drawCircle(0, 0, 50);
+    circle.x = 100;
+    circle.y = 100;
+
+    circle.interactive = true;
+    circle.on('pointerover', onPointerOver);
+    console.log(circle)
+
+    function onPointerOver() {
+      this.x = 300;
+      this.clear();
+      this.beginFill(0x00ff00);
+      circle.drawCircle(0,0,25);
+    }
+    app.stage.addChild(circle);
+  */
+  </script>
+</body>
+
 </html>
