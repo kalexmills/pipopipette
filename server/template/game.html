@@ -4,6 +4,9 @@
   <title>Pipopipette</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
   <style>
+    body {
+      margin:0
+    }
     .pixi-container{
       height: 100%
     }
@@ -18,41 +21,6 @@
         return NaN
       }
       return Math.min(Math.max(x, lower), upper)
-    }
-    
-    class SegmentMap {
-      constructor() {
-        this.data = {}
-      }
-
-      set(segment, value) {
-        this.data[this._key(segment)] = value
-      }
-      
-      get(segment) {
-        return this.data[this._key(segment)]
-      }
-
-      foreach(f) {
-        for(const key in this.data) {
-          f(this._segment(key), this.data[key])
-        }
-      }
-
-      contains(segment) {
-        return this.data.hasOwnProperty(_key(segment))
-      }
-
-      _key({x1,y1,x2,y2}) {
-        return x1+","+y1+":"+x2+","+y2
-      }
-      
-      _segment(key) {
-        const [p1,p2] = key.split(":")
-        const [x1,y1] = p1.split(",")
-        const [x2,y2] = p2.split(",")
-        return {x1: parseInt(x1), y1: parseInt(y1), x2: parseInt(x2), y2: parseInt(y2)}
-      }
     }
 
     const app = new PIXI.Application({
@@ -81,11 +49,7 @@
         this.g = new PIXI.Graphics();
 
         this.addChild(this.g);
-        this.on('pointermove', function(event){
-          const mx = event.data.originalEvent.layerX;
-          const my = event.data.originalEvent.layerY;
-          this.mouse = {x: mx - this.g.x, y: my - this.g.y}
-        })
+        this.on('pointermove', this.onPointermove)
 
         if (debug) {
           this.gridBound = new PIXI.Graphics();
@@ -95,6 +59,12 @@
 
       setSegments(segments) {
         this.segments = segments;
+      }
+
+      onPointermove(event) {
+        const mx = event.data.originalEvent.layerX;
+        const my = event.data.originalEvent.layerY;
+        this.mouse = {x: mx - this.g.x, y: my - this.g.y}
       }
 
       onResize(w, h) {
@@ -259,6 +229,42 @@
     app.ticker.add(delta => {
       grid.onRender()
     });
+    
+    /*
+    class SegmentMap {
+      constructor() {
+        this.data = {}
+      }
+
+      set(segment, value) {
+        this.data[this._key(segment)] = value
+      }
+      
+      get(segment) {
+        return this.data[this._key(segment)]
+      }
+
+      foreach(f) {
+        for(const key in this.data) {
+          f(this._segment(key), this.data[key])
+        }
+      }
+
+      contains(segment) {
+        return this.data.hasOwnProperty(_key(segment))
+      }
+
+      _key({x1,y1,x2,y2}) {
+        return x1+","+y1+":"+x2+","+y2
+      }
+      
+      _segment(key) {
+        const [p1,p2] = key.split(":")
+        const [x1,y1] = p1.split(",")
+        const [x2,y2] = p2.split(",")
+        return {x1: parseInt(x1), y1: parseInt(y1), x2: parseInt(x2), y2: parseInt(y2)}
+      }
+    }*/
   </script>
 </body>
 
