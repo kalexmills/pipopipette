@@ -76,8 +76,10 @@
 
         this.n = n;
         this.interactive = true;
-
+        this.highlightedSegment = null;
+        this.segments = [];
         this.g = new PIXI.Graphics();
+
         this.addChild(this.g);
         this.on('pointermove', function(event){
           const mx = event.data.originalEvent.layerX;
@@ -104,14 +106,17 @@
         this.g.x = sq/2 + xOff;
         this.g.y = sq/2 + yOff;
 
-        const radius = sq / (this.n-1) * 0.08;
+        const gridWidth = sq / (this.n-1);
+        const radius = gridWidth * 0.08;
+        const segmentThickness = gridWidth*0.12;
+        
         const dMin = -sq/2 + radius
         const dMax = dMin + sq - 2*radius;
 
         const step = (dMax-dMin) / (this.n-1);
         
         // save grid parameters
-        this.grid = {sq, xOff, yOff, radius, dMin, dMax, step};
+        this.measures = {sq, xOff, yOff, radius, segmentThickness, dMin, dMax, step};
 
         this.onRender();
       }
@@ -123,7 +128,7 @@
         this.drawHighlightedSegment();
         this.drawSegments();
         this.drawDots();
-        this.drawDebug();
+        this.drawBounds();
       }
 
       updateHighlightedSegment() {
@@ -185,25 +190,25 @@
 
       drawHighlightedSegment() {
         if (this.highlightedSegment){
-          const {dMin, step} = this.grid;
+          const {dMin, step} = this.measures;
 
           this.drawSegment(this.highlightedSegment, 0xFFFFFF)
         }
       }
 
       drawSegment({x1,y1,x2,y2}, color) {
-        const {dMin, step} = this.grid;
+        const {dMin, step, segmentThickness} = this.measures;
         x1 = dMin + step * x1
         y1 = dMin + step * y1
         x2 = dMin + step * x2
         y2 = dMin + step * y2
-        this.g.lineStyle(2, color, 1)
+        this.g.lineStyle(segmentThickness, color, 1)
         this.g.moveTo(x1,y1)
         this.g.lineTo(x2,y2)
       }
 
       drawDots() {
-        const {dMin, step, radius} = this.grid;
+        const {dMin, step, radius} = this.measures;
         for (let i = 0; i < this.n; i++) {
           for (let j = 0; j < this.n; j++) {
             let x = dMin + i*step;
@@ -216,9 +221,9 @@
         }
       }
 
-      drawDebug() {
-        const {sq, xOff, yOff} = this.grid;
+      drawBounds() {
         if (this.gridBound) {
+          const {sq, xOff, yOff} = this.measures;
           this.gridBound.clear()
           this.gridBound.lineStyle(1, 0x00ff00, 1);
           this.gridBound.drawRect(-sq/2, -sq/2, sq, sq);
@@ -232,15 +237,15 @@
       }
 
       toGrid({x, y}) {
-        const {dMin, step} = this.grid;
+        const {dMin, step} = this.measures;
         return {x: (x - dMin) / step, y: (y - dMin) / step}
       }
     }
 
     grid = new Grid(20);
     grid.setSegments([
-      GridSegment({x1:1,y1:2,x2:2,y2:2}, 0xff0000),
-      GridSegment({x1:4,y1:1,x2:4,y2:2}, 0x0000ff)
+      GridSegment({x1:1,y1:2,x2:2,y2:2}, 0xFF0000),
+      GridSegment({x1:4,y1:1,x2:4,y2:2}, 0x0000FF)
     ])
     app.stage.addChild(grid);
 
